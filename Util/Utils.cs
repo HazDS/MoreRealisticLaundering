@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Reflection;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader.Utils;
 using MelonLoader;
@@ -127,6 +128,64 @@ namespace MoreRealisticLaundering.Util
             return result;
         }
 
+        /// <summary>
+        /// Loads an embedded resource image from the assembly and returns it as a byte array.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource file (e.g., "LaunderingIcon.png")</param>
+        /// <returns>Byte array of the image data, or null if not found</returns>
+        public static byte[] LoadEmbeddedResource(string resourceName)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            // Resource names are prefixed with namespace and folder: MoreRealisticLaundering.Assets.filename.png
+            string fullResourceName = $"MoreRealisticLaundering.Assets.{resourceName}";
 
+            using (var stream = assembly.GetManifestResourceStream(fullResourceName))
+            {
+                if (stream == null)
+                {
+                    MelonLogger.Warning($"Embedded resource not found: {fullResourceName}");
+                    return null;
+                }
+
+                byte[] buffer = new byte[stream.Length];
+                stream.Read(buffer, 0, buffer.Length);
+                return buffer;
+            }
+        }
+
+        /// <summary>
+        /// Loads an embedded resource image and creates a Texture2D from it.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource file (e.g., "LaunderingIcon.png")</param>
+        /// <returns>Texture2D or null if resource not found</returns>
+        public static Texture2D LoadEmbeddedTexture(string resourceName)
+        {
+            byte[] imageData = LoadEmbeddedResource(resourceName);
+            if (imageData == null)
+                return null;
+
+            Texture2D texture = new Texture2D(2, 2);
+            if (ImageConversion.LoadImage(texture, imageData))
+            {
+                return texture;
+            }
+
+            MelonLogger.Error($"Failed to load texture from embedded resource: {resourceName}");
+            return null;
+        }
+
+        /// <summary>
+        /// Loads an embedded resource image and creates a Sprite from it.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource file (e.g., "LaunderingIcon.png")</param>
+        /// <returns>Sprite or null if resource not found</returns>
+        public static Sprite LoadEmbeddedSprite(string resourceName)
+        {
+            Texture2D texture = LoadEmbeddedTexture(resourceName);
+            if (texture == null)
+                return null;
+
+            return Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+        }
     }
 }
