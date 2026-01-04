@@ -1073,7 +1073,7 @@ namespace MoreRealisticLaundering.PhoneApp
                 // UnownedProperties
                 foreach (Property property in Property.UnownedProperties)
                 {
-                    if (property == null || property.name == "RV") continue;
+                    if (property == null || property.name == "RV" || property.name == "Sewer office" || property.name == "PostOffice") continue;
 
                     string displayName = property.name;
                     if (displayName == "MotelRoom")
@@ -1096,7 +1096,7 @@ namespace MoreRealisticLaundering.PhoneApp
                 // OwnedProperties
                 foreach (Property property in Property.OwnedProperties)
                 {
-                    if (property == null || property.name == "RV") continue;
+                    if (property == null || property.name == "RV" || property.name == "Sewer office" || property.name == "PostOffice") continue;
 
                     string displayName = property.name;
                     if (displayName == "MotelRoom")

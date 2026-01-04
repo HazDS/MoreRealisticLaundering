@@ -15,7 +15,7 @@ using Il2CppScheduleOne.Tools;
 using Il2CppScheduleOne.Management.Presets.Options;
 using UnityEngine.PlayerLoop;
 
-[assembly: MelonInfo(typeof(MoreRealisticLaundering.MRLCore), "MoreRealisticLaundering", "1.2.5", "KampfBallerina", null)]
+[assembly: MelonInfo(typeof(MoreRealisticLaundering.MRLCore), "MoreRealisticLaundering (Forked by HazDS)", "1.2.6", "KampfBallerina", null)]
 [assembly: MelonGame("TVGS", "Schedule I")]
 
 namespace MoreRealisticLaundering
