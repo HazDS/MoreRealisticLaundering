@@ -7,12 +7,11 @@ MoreRealisticLaundering enhances the in-game money laundering mechanics by intro
 - Not compatible with most translation mods
 - Custom app takes long to be visible: Allows other mods to load their custom apps before
 
-## What's new in Version 1.2.6?
-- Updated to work with Schedule 1 v0.4.2f9
-- Added Hotbox vehicle support
-- Added Offroad Skateboard support
-- Changed image loading to use embedded resources instead of file paths
-- Improved robustness of in-game object lookups for property listings, for sale signs, and skateboard catalog entries
+## What's new in Version 1.2.7?
+- Property and business prices now update dynamically during NPC dialogues
+- Improved price application logic for businesses
+- Enhanced compatibility with other mods (e.g., Product Manager Filter)
+- UI input fields now support more digits and better reflect config values
 
 ## Installation
 1. Download the latest release from the [GitHub Releases](https://github.com/HazDS/MoreRealisticLaundering/releases) page.

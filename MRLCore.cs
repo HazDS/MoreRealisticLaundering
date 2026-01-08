@@ -1,10 +1,11 @@
 ﻿﻿using System.Collections;
+using System.Linq;
 using Il2CppScheduleOne.Property;
 using MelonLoader;
 using UnityEngine;
 using Il2CppScheduleOne.Money;
 using Il2CppScheduleOne.UI;
-using MelonLoader.Utils;
+
 using UnityEngine.UI;
 using MoreRealisticLaundering.Util;
 using Il2CppTMPro;
@@ -12,10 +13,9 @@ using Il2CppScheduleOne.Dialogue;
 using MoreRealisticLaundering.Config;
 using Il2CppScheduleOne.Vehicles;
 using Il2CppScheduleOne.Tools;
-using Il2CppScheduleOne.Management.Presets.Options;
-using UnityEngine.PlayerLoop;
 
-[assembly: MelonInfo(typeof(MoreRealisticLaundering.MRLCore), "MoreRealisticLaundering (Forked by HazDS)", "1.2.6", "KampfBallerina", null)]
+
+[assembly: MelonInfo(typeof(MoreRealisticLaundering.MRLCore), "MoreRealisticLaundering (Forked by HazDS)", "1.2.7", "KampfBallerina", null)]
 [assembly: MelonGame("TVGS", "Schedule I")]
 
 namespace MoreRealisticLaundering
@@ -28,13 +28,49 @@ namespace MoreRealisticLaundering
         public override void OnInitializeMelon()
         {
             LoggerInstance.Msg("Initialized.");
+
+            // Register Harmony patches
+            var harmony = new HarmonyLib.Harmony("com.mrlcore.morerealisticlaundering");
+            harmony.PatchAll(System.Reflection.Assembly.GetExecutingAssembly());
+            LoggerInstance.Msg("Harmony patches applied.");
+
+            // Manual patching for DialogueHandler_EstateAgent (PatchAll doesn't work for these)
+            try
+            {
+                var estateAgentType = typeof(Il2CppScheduleOne.Dialogue.DialogueHandler_EstateAgent);
+                var bindingFlags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+
+                // Patch ModifyChoiceText
+                var modifyChoiceTextMethod = estateAgentType.GetMethod("ModifyChoiceText", bindingFlags);
+                var modifyChoiceTextPrefix = typeof(MRLCore).GetMethod("ModifyChoiceText_Prefix", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                if (modifyChoiceTextMethod != null && modifyChoiceTextPrefix != null)
+                {
+                    harmony.Patch(modifyChoiceTextMethod, prefix: new HarmonyLib.HarmonyMethod(modifyChoiceTextPrefix));
+                }
+
+                // Patch CheckChoice
+                var checkChoiceMethod = estateAgentType.GetMethod("CheckChoice", bindingFlags);
+                var checkChoicePrefix = typeof(MRLCore).GetMethod("CheckChoice_Prefix", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+                if (checkChoiceMethod != null && checkChoicePrefix != null)
+                {
+                    harmony.Patch(checkChoiceMethod, prefix: new HarmonyLib.HarmonyMethod(checkChoicePrefix));
+                }
+
+                LoggerInstance.Msg("DialogueHandler_EstateAgent patches applied.");
+            }
+            catch (Exception ex)
+            {
+                LoggerInstance.Error($"Failed to patch DialogueHandler_EstateAgent: {ex.Message}");
+            }
             MRLCore.Instance = this;
             MRLCore.Instance.maxiumumLaunderValues = new System.Collections.Generic.Dictionary<string, float>();
             MRLCore.Instance.aliasMap = new System.Collections.Generic.Dictionary<string, string>
             {
                 { "Laundromat", "Laundromat" },
                 { "Taco Ticklers", "Taco Ticklers" },
+                { "TacoTicklers", "Taco Ticklers" },
                 { "Car Wash", "Car Wash" },
+                { "CarWash", "Car Wash" },
                 { "Post Office", "Post Office" },
                 { "PostOffice", "Post Office" },
                 { "Motel", "Motel"},
@@ -254,6 +290,19 @@ namespace MoreRealisticLaundering
                 MRLCore.launderingApp.AddEntryFromTemplate("Hyland Auto", "Hyland Auto", "We make you drive crazy.", null, MRLCore.launderingApp.DansHardwareTemplate, ColorUtil.GetColor("Dark Green"), "HylandAuto.png", null, true);
                 MRLCore.launderingApp.AddEntryFromTemplate("Rays Real Estate", "Ray's Real Estate", "No credit check. No judgment. Just opportunity.", null, MRLCore.launderingApp.DansHardwareTemplate, ColorUtil.GetColor("Light Purple"), "RaysRealEstate.png", null, true);
             }
+            // Wait for businesses to be available before applying prices
+            // Check for either unowned OR owned businesses (in case of loaded save)
+            int waitAttempts = 0;
+            int unownedCount = Business.UnownedBusinesses?.Count ?? 0;
+            int ownedCount = Business.OwnedBusinesses?.Count ?? 0;
+            while ((unownedCount + ownedCount) == 0 && waitAttempts < 30)
+            {
+                yield return new WaitForSeconds(0.5f);
+                waitAttempts++;
+                unownedCount = Business.UnownedBusinesses?.Count ?? 0;
+                ownedCount = Business.OwnedBusinesses?.Count ?? 0;
+            }
+
             ApplyPricesToProperties();
             ApplyPricesToPropertyListings();
             ApplyPricesToVehicles();
@@ -569,42 +618,52 @@ namespace MoreRealisticLaundering
 
         public void ApplyPricesToProperties()
         {
-            if (Business.UnownedBusinesses != null)
+            // Apply prices to unowned businesses (for purchasing)
+            if (Business.UnownedBusinesses != null && Business.UnownedBusinesses.Count > 0)
             {
                 foreach (Business business in Business.UnownedBusinesses)
                 {
-                    if (business == null)
-                    {
-                        MelonLogger.Warning("Encountered a null business in UnownedBusinesses. Skipping...");
-                        continue;
-                    }
-
-                    if (MRLCore.Instance.aliasMap.TryGetValue(business.name, out string key))
-                    {
-                        float price = key switch
-                        {
-                            "Laundromat" => MRLCore.Instance.config.Properties.BusinessProperties.Laundromat_Price,
-                            "Taco Ticklers" => MRLCore.Instance.config.Properties.BusinessProperties.Taco_Ticklers_Price,
-                            "Car Wash" => MRLCore.Instance.config.Properties.BusinessProperties.Car_Wash_Price,
-                            "PostOffice" => MRLCore.Instance.config.Properties.BusinessProperties.Post_Office_Price,
-                            "Post Office" => MRLCore.Instance.config.Properties.BusinessProperties.Post_Office_Price,
-                            _ => 1000f // Standardwert
-                        };
-
-                        business.Price = price;
-                        //   MelonLogger.Msg($"Set price for unowned business '{business.name}' to {price:C}.");
-                    }
-                    else
-                    {
-                        MelonLogger.Warning($"Business '{business.name}' not found in aliasMap. Skipping price assignment.");
-                    }
+                    ApplyPriceToBusiness(business);
                 }
+            }
+
+            // Also apply prices to owned businesses (for consistency in displays/values)
+            if (Business.OwnedBusinesses != null && Business.OwnedBusinesses.Count > 0)
+            {
+                foreach (Business business in Business.OwnedBusinesses)
+                {
+                    ApplyPriceToBusiness(business);
+                }
+            }
+
+            ApplyPricesForHomeProperties();
+        }
+
+        private void ApplyPriceToBusiness(Business business)
+        {
+            if (business == null)
+            {
+                MelonLogger.Warning("Encountered a null business. Skipping...");
+                return;
+            }
+
+            if (MRLCore.Instance.aliasMap.TryGetValue(business.name, out string key))
+            {
+                float price = key switch
+                {
+                    "Laundromat" => MRLCore.Instance.config.Properties.BusinessProperties.Laundromat_Price,
+                    "Taco Ticklers" => MRLCore.Instance.config.Properties.BusinessProperties.Taco_Ticklers_Price,
+                    "Car Wash" => MRLCore.Instance.config.Properties.BusinessProperties.Car_Wash_Price,
+                    "Post Office" => MRLCore.Instance.config.Properties.BusinessProperties.Post_Office_Price,
+                    _ => 1000f
+                };
+
+                business.Price = price;
             }
             else
             {
-                MelonLogger.Warning("UnownedBusinesses is null. Cannot apply prices.");
+                MelonLogger.Warning($"Business '{business.name}' not found in aliasMap. Skipping price assignment.");
             }
-            ApplyPricesForHomeProperties();
         }
 
         public void ApplyPricesForHomeProperties()
@@ -1243,6 +1302,74 @@ namespace MoreRealisticLaundering
                 else
                 {
                     MelonLogger.Warning($"Price object not found for sell sign of {objectName}.");
+                }
+            }
+        }
+
+        // Static prefix methods for Harmony patches on DialogueHandler_EstateAgent
+        public static void ModifyChoiceText_Prefix(string choiceLabel, string choiceText)
+        {
+            UpdateEstateAgentPrices(choiceLabel);
+        }
+
+        public static void CheckChoice_Prefix(string choiceLabel)
+        {
+            UpdateEstateAgentPrices(choiceLabel);
+        }
+
+        private static void UpdateEstateAgentPrices(string choiceLabel)
+        {
+            if (string.IsNullOrEmpty(choiceLabel) || MRLCore.Instance?.config == null)
+                return;
+
+            // Update business prices
+            if (Business.UnownedBusinesses != null)
+            {
+                foreach (Business business in Business.UnownedBusinesses)
+                {
+                    if (business == null) continue;
+                    if (business.PropertyCode.ToLower() == choiceLabel.ToLower())
+                    {
+                        string normalized = business.name.ToLower().Replace(" ", "").Replace("_", "");
+                        float price = normalized switch
+                        {
+                            "laundromat" => MRLCore.Instance.config.Properties.BusinessProperties.Laundromat_Price,
+                            "tacoticklers" => MRLCore.Instance.config.Properties.BusinessProperties.Taco_Ticklers_Price,
+                            "carwash" => MRLCore.Instance.config.Properties.BusinessProperties.Car_Wash_Price,
+                            "postoffice" => MRLCore.Instance.config.Properties.BusinessProperties.Post_Office_Price,
+                            _ => 1000f
+                        };
+                        business.Price = price;
+                        return;
+                    }
+                }
+            }
+
+            // Update property prices
+            if (Property.UnownedProperties != null)
+            {
+                foreach (Property property in Property.UnownedProperties)
+                {
+                    if (property == null) continue;
+                    if (property is Business) continue;
+                    if (property.PropertyCode.ToLower() == choiceLabel.ToLower())
+                    {
+                        string normalized = property.name.ToLower().Replace(" ", "").Replace("_", "");
+                        float price = normalized switch
+                        {
+                            "motelroom" => MRLCore.Instance.config.Properties.PrivateProperties.Motel_Room_Price,
+                            "motel" => MRLCore.Instance.config.Properties.PrivateProperties.Motel_Room_Price,
+                            "sweatshop" => MRLCore.Instance.config.Properties.PrivateProperties.Sweatshop_Price,
+                            "bungalow" => MRLCore.Instance.config.Properties.PrivateProperties.Bungalow_Price,
+                            "barn" => MRLCore.Instance.config.Properties.PrivateProperties.Barn_Price,
+                            "dockswarehouse" => MRLCore.Instance.config.Properties.PrivateProperties.Docks_Warehouse_Price,
+                            "manor" => MRLCore.Instance.config.Properties.PrivateProperties.Manor_Price,
+                            "storageunit" => MRLCore.Instance.config.Properties.PrivateProperties.Storage_Unit_Price,
+                            _ => 1000f
+                        };
+                        property.Price = price;
+                        return;
+                    }
                 }
             }
         }

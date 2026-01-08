@@ -1,4 +1,3 @@
-
 [img]https://github.com/user-attachments/assets/5c807458-11ea-47bb-a13a-af9b8e534587[/img]
 [size=4][b]
 Summary[/b][/size]
@@ -9,13 +8,12 @@ MoreRealisticLaundering enhances the in-game money laundering mechanics by intro
 [*]Not compatible with most translation mods
 [*]Custom app takes long to be visible: Allows other mods to load their custom apps before
 [/list]
-[size=4][b]What's new in Version 1.2.6?[/b][/size]
+[size=4][b]What's new in Version 1.2.7?[/b][/size]
 [list]
-[*]Updated to work with Schedule 1 v0.4.2f9 (Main Branch (Il2cpp))
-[*]Added Hotbox vehicle support
-[*]Added Offroad Skateboard support
-[*]Changed image loading to use embedded resources instead of file paths
-[*]Improved robustness of in-game object lookups for property listings, for sale signs, and skateboard catalog entries
+[*]Property and business prices now update dynamically during NPC dialogues
+[*]Improved price application logic for businesses
+[*]Enhanced compatibility with other mods (e.g., Product Manager Filter)
+[*]UI input fields now support more digits and better reflect config values
 [/list]
 [size=4][b]Installation[/b][/size]
 [list=1]

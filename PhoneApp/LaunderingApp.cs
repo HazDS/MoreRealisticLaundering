@@ -103,6 +103,15 @@ namespace MoreRealisticLaundering.PhoneApp
 
             Transform container = mrlApp.transform.Find("Container");
 
+            // Remove FiltersPanel if it exists (added by Product Manager Filter mod)
+            // This ensures compatibility when that mod is installed
+            Transform filtersPanel = container?.Find("FiltersPanel");
+            if (filtersPanel != null)
+            {
+                MelonLogger.Msg("Removing FiltersPanel from cloned app (Product Manager Filter compatibility)");
+                UnityEngine.Object.DestroyImmediate(filtersPanel.gameObject);
+            }
+
             //Adjust Topbar for Sleep App
             Transform topbarTransform = container.Find("Topbar");
             if (topbarTransform != null)
@@ -250,6 +259,10 @@ namespace MoreRealisticLaundering.PhoneApp
             AddPriceOptionsWithToggleButton(settingsContentTransform);
             AddVehicleOptions(settingsContentTransform);
             AddSkateboardOptions(settingsContentTransform);
+
+            // Load config values into the UI input fields
+            LoadConfigValuesIntoUI();
+
             _isLaunderingAppLoaded = true;
 
 
@@ -1025,116 +1038,40 @@ namespace MoreRealisticLaundering.PhoneApp
                 }
             }
 
-            // Lade die Preise für OwnedBusinesses und UnownedBusinesses
-            if (Business.OwnedBusinesses == null && Business.UnownedBusinesses == null)
+            // Load business prices from config (game resets Business.Price values)
+            if (MRLCore.Instance.config != null)
             {
-                MelonLogger.Error("OwnedBusinesses or UnownedBusinesses is null! Cannot load price values.");
-                return;
+                SetInputFieldValue(priceOptionsTransform, "Laundromat", MRLCore.Instance.config.Properties.BusinessProperties.Laundromat_Price);
+                SetInputFieldValue(priceOptionsTransform, "Post Office", MRLCore.Instance.config.Properties.BusinessProperties.Post_Office_Price);
+                SetInputFieldValue(priceOptionsTransform, "Car Wash", MRLCore.Instance.config.Properties.BusinessProperties.Car_Wash_Price);
+                SetInputFieldValue(priceOptionsTransform, "Taco Ticklers", MRLCore.Instance.config.Properties.BusinessProperties.Taco_Ticklers_Price);
             }
             else
             {
-                // OwnedBusinesses
-                foreach (Business business in Business.OwnedBusinesses)
-                {
-                    if (business == null) continue;
-
-                    string displayName = business.name;
-                    if (displayName == "PostOffice")
-                    {
-                        displayName = "Post Office";
-                    }
-                    float price = business.Price;
-                    SetInputFieldValue(priceOptionsTransform, displayName, price);
-                }
-
-                // UnownedBusinesses
-                foreach (Business business in Business.UnownedBusinesses)
-                {
-                    if (business == null) continue;
-
-                    string displayName = business.name;
-                    if (displayName == "PostOffice")
-                    {
-                        displayName = "Post Office";
-                    }
-                    float price = business.Price;
-                    SetInputFieldValue(priceOptionsTransform, displayName, price);
-                }
+                MelonLogger.Error("Config is null! Cannot load business price values.");
             }
 
-            // Lade die Preise für UnownedProperties und OwnedProperties
-            if (Property.UnownedProperties == null && Property.OwnedProperties == null)
-            {
-                MelonLogger.Error("UnownedProperties or OwnedProperties is null! Cannot load price values.");
-                return;
-            }
-            else
-            {
-                // UnownedProperties
-                foreach (Property property in Property.UnownedProperties)
-                {
-                    if (property == null || property.name == "RV" || property.name == "Sewer office" || property.name == "PostOffice") continue;
-
-                    string displayName = property.name;
-                    if (displayName == "MotelRoom")
-                    {
-                        displayName = "Motel";
-                    }
-                    if (displayName == "DocksWarehouse")
-                    {
-                        displayName = "Docks Warehouse";
-                    }
-                    if (displayName == "StorageUnit")
-                    {
-                        displayName = "Storage Unit";
-                    }
-
-                    float price = property.Price;
-                    SetInputFieldValue(priceOptionsTransform, displayName, price);
-                }
-
-                // OwnedProperties
-                foreach (Property property in Property.OwnedProperties)
-                {
-                    if (property == null || property.name == "RV" || property.name == "Sewer office" || property.name == "PostOffice") continue;
-
-                    string displayName = property.name;
-                    if (displayName == "MotelRoom")
-                    {
-                        displayName = "Motel";
-                    }
-                    if (displayName == "DocksWarehouse")
-                    {
-                        displayName = "Docks Warehouse";
-                    }
-                    if (displayName == "StorageUnit")
-                    {
-                        displayName = "Storage Unit";
-                    }
-                    float price = property.Price;
-                    SetInputFieldValue(priceOptionsTransform, displayName, price);
-                }
-            }
+            // Load private property prices from config
+            SetInputFieldValue(priceOptionsTransform, "Storage Unit", MRLCore.Instance.config.Properties.PrivateProperties.Storage_Unit_Price);
+            SetInputFieldValue(priceOptionsTransform, "Motel", MRLCore.Instance.config.Properties.PrivateProperties.Motel_Room_Price);
+            SetInputFieldValue(priceOptionsTransform, "Sweatshop", MRLCore.Instance.config.Properties.PrivateProperties.Sweatshop_Price);
+            SetInputFieldValue(priceOptionsTransform, "Bungalow", MRLCore.Instance.config.Properties.PrivateProperties.Bungalow_Price);
+            SetInputFieldValue(priceOptionsTransform, "Barn", MRLCore.Instance.config.Properties.PrivateProperties.Barn_Price);
+            SetInputFieldValue(priceOptionsTransform, "Docks Warehouse", MRLCore.Instance.config.Properties.PrivateProperties.Docks_Warehouse_Price);
+            SetInputFieldValue(priceOptionsTransform, "Manor", MRLCore.Instance.config.Properties.PrivateProperties.Manor_Price);
         }
 
         private void SetInputFieldValue(Transform parentTransform, string displayName, float value)
         {
-            Transform inputFieldTransform = parentTransform.Find($"{displayName} Horizontal Container/{displayName} Input");
+            string path = $"{displayName} Horizontal Container/{displayName} Input";
+            Transform inputFieldTransform = parentTransform.Find(path);
             if (inputFieldTransform != null)
             {
                 InputField inputField = inputFieldTransform.GetComponent<InputField>();
                 if (inputField != null)
                 {
-                    inputField.text = value.ToString();
+                    inputField.text = ((int)value).ToString();
                 }
-                else
-                {
-                    MelonLogger.Error($"InputField component not found for {displayName}.");
-                }
-            }
-            else
-            {
-                MelonLogger.Error($"Transform not found for {displayName}.");
             }
         }
 
@@ -1414,7 +1351,7 @@ namespace MoreRealisticLaundering.PhoneApp
             {
                 labelRect = labelObject.AddComponent<RectTransform>();
             }
-            labelRect.sizeDelta = new Vector2(325, 30); // Breite und Höhe des Labels
+            labelRect.sizeDelta = new Vector2(305, 30); // Breite und Höhe des Labels
             labelRect.anchorMin = new Vector2(0, 0.5f);
             labelRect.anchorMax = new Vector2(0, 0.5f);
             labelRect.pivot = new Vector2(0, 0.5f);
@@ -1424,8 +1361,8 @@ namespace MoreRealisticLaundering.PhoneApp
             if (layoutElement == null)
             {
                 layoutElement = labelObject.AddComponent<LayoutElement>();
-                layoutElement.minWidth = 325; // Mindestbreite des Input-Felds
-                layoutElement.preferredWidth = 325; // Bevorzugte Breite des Input-Felds
+                layoutElement.minWidth = 305; // Mindestbreite des Input-Felds
+                layoutElement.preferredWidth = 305; // Bevorzugte Breite des Input-Felds
                 layoutElement.minHeight = 30; // Mindesthöhe des Input-Felds
                 layoutElement.preferredHeight = 30; // Bevorzugte Höhe des Input-Felds
             }
@@ -1467,7 +1404,7 @@ namespace MoreRealisticLaundering.PhoneApp
             {
                 inputRect = inputObject.AddComponent<RectTransform>();
             }
-            inputRect.sizeDelta = new Vector2(100, 30); // Setze die Größe des Input-Felds auf die gleiche Größe wie der Hintergrund
+            inputRect.sizeDelta = new Vector2(120, 30); // Setze die Größe des Input-Felds auf die gleiche Größe wie der Hintergrund
             inputRect.anchorMin = new Vector2(0, 0.5f);
             inputRect.anchorMax = new Vector2(0, 0.5f);
             inputRect.pivot = new Vector2(0, 0.5f);
@@ -1478,8 +1415,8 @@ namespace MoreRealisticLaundering.PhoneApp
             if (layoutElementInput == null)
             {
                 layoutElementInput = inputObject.AddComponent<LayoutElement>();
-                layoutElementInput.minWidth = 100; // Mindestbreite des Input-Felds
-                layoutElementInput.preferredWidth = 100; // Bevorzugte Breite des Input-Felds
+                layoutElementInput.minWidth = 120; // Mindestbreite des Input-Felds
+                layoutElementInput.preferredWidth = 120; // Bevorzugte Breite des Input-Felds
                 layoutElementInput.minHeight = 30; // Mindesthöhe des Input-Felds
                 layoutElementInput.preferredHeight = 30; // Bevorzugte Höhe des Input-Felds
             }
@@ -1502,7 +1439,7 @@ namespace MoreRealisticLaundering.PhoneApp
             // Weise den Text dem InputField zu
             inputFieldComponent.textComponent = inputTextComponent;
 
-            inputFieldComponent.characterLimit = 6; // Maximal 6 Zeichen eingeben
+            inputFieldComponent.characterLimit = 7;
             inputFieldComponent.text = "1000";
 
             void FuncThatCallsFunc(string value) => onEndEditCheck(inputFieldComponent, value, labelText);
@@ -1541,9 +1478,9 @@ namespace MoreRealisticLaundering.PhoneApp
             RectTransform inputTextRect = inputTextObject.GetComponent<RectTransform>();
             if (inputTextRect != null)
             {
-                inputTextRect.sizeDelta = new Vector2(100, 30); // Setze die Größe des Text-Objekts auf die gleiche Größe wie das Input-Feld
+                inputTextRect.sizeDelta = new Vector2(120, 30); // Setze die Größe des Text-Objekts auf die gleiche Größe wie das Input-Feld
                 inputTextRect.offsetMin = new Vector2(-20, inputTextRect.offsetMin.y);
-                inputTextRect.offsetMax = new Vector2(40, inputTextRect.offsetMax.y); // Verschiebe den linken Rand nach rechts
+                inputTextRect.offsetMax = new Vector2(60, inputTextRect.offsetMax.y); // Text area: 60 - (-20) = 80px for 7 digits
             }
 
             //  MelonLogger.Msg($"Added Label, Prefix '$', and InputField for '{labelText}' to Horizontal Container.");
@@ -2951,6 +2888,58 @@ namespace MoreRealisticLaundering.PhoneApp
                 parentTransform.FindChild("Space").SetAsLastSibling();
             }
             skateboardOptionsObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// Loads config values into the UI input fields after they are created
+        /// </summary>
+        public void LoadConfigValuesIntoUI()
+        {
+            if (MRLCore.Instance.config == null)
+            {
+                MelonLogger.Warning("Config not loaded yet, cannot populate UI values");
+                return;
+            }
+
+            // Load Real Estate / Property prices
+            if (priceOptionsTransform != null)
+            {
+                SetInputFieldValue(priceOptionsTransform, "Laundromat", MRLCore.Instance.config.Properties.BusinessProperties.Laundromat_Price);
+                SetInputFieldValue(priceOptionsTransform, "Post Office", MRLCore.Instance.config.Properties.BusinessProperties.Post_Office_Price);
+                SetInputFieldValue(priceOptionsTransform, "Car Wash", MRLCore.Instance.config.Properties.BusinessProperties.Car_Wash_Price);
+                SetInputFieldValue(priceOptionsTransform, "Taco Ticklers", MRLCore.Instance.config.Properties.BusinessProperties.Taco_Ticklers_Price);
+
+                SetInputFieldValue(priceOptionsTransform, "Storage Unit", MRLCore.Instance.config.Properties.PrivateProperties.Storage_Unit_Price);
+                SetInputFieldValue(priceOptionsTransform, "Motel", MRLCore.Instance.config.Properties.PrivateProperties.Motel_Room_Price);
+                SetInputFieldValue(priceOptionsTransform, "Sweatshop", MRLCore.Instance.config.Properties.PrivateProperties.Sweatshop_Price);
+                SetInputFieldValue(priceOptionsTransform, "Bungalow", MRLCore.Instance.config.Properties.PrivateProperties.Bungalow_Price);
+                SetInputFieldValue(priceOptionsTransform, "Barn", MRLCore.Instance.config.Properties.PrivateProperties.Barn_Price);
+                SetInputFieldValue(priceOptionsTransform, "Docks Warehouse", MRLCore.Instance.config.Properties.PrivateProperties.Docks_Warehouse_Price);
+                SetInputFieldValue(priceOptionsTransform, "Manor", MRLCore.Instance.config.Properties.PrivateProperties.Manor_Price);
+            }
+
+            // Load Vehicle prices
+            if (vehicleOptionsTransform != null)
+            {
+                SetInputFieldValue(vehicleOptionsTransform, "Shitbox", MRLCore.Instance.config.Vehicles.Shitbox_Price);
+                SetInputFieldValue(vehicleOptionsTransform, "Veeper", MRLCore.Instance.config.Vehicles.Veeper_Price);
+                SetInputFieldValue(vehicleOptionsTransform, "Bruiser", MRLCore.Instance.config.Vehicles.Bruiser_Price);
+                SetInputFieldValue(vehicleOptionsTransform, "Dinkler", MRLCore.Instance.config.Vehicles.Dinkler_Price);
+                SetInputFieldValue(vehicleOptionsTransform, "Hounddog", MRLCore.Instance.config.Vehicles.Hounddog_Price);
+                SetInputFieldValue(vehicleOptionsTransform, "Cheetah", MRLCore.Instance.config.Vehicles.Cheetah_Price);
+                SetInputFieldValue(vehicleOptionsTransform, "Hotbox", MRLCore.Instance.config.Vehicles.Hotbox_Price);
+            }
+
+            // Load Skateboard prices
+            if (skateboardOptionsTransform != null)
+            {
+                SetInputFieldValue(skateboardOptionsTransform, "Cheap Skateboard", MRLCore.Instance.config.Skateboards.Cheap_Skateboard_Price);
+                SetInputFieldValue(skateboardOptionsTransform, "Skateboard", MRLCore.Instance.config.Skateboards.Skateboard_Price);
+                SetInputFieldValue(skateboardOptionsTransform, "Lightweight Board", MRLCore.Instance.config.Skateboards.Lightweight_Board_Price);
+                SetInputFieldValue(skateboardOptionsTransform, "Cruiser", MRLCore.Instance.config.Skateboards.Cruiser_Price);
+                SetInputFieldValue(skateboardOptionsTransform, "Golden Skateboard", MRLCore.Instance.config.Skateboards.Golden_Skateboard_Price);
+                SetInputFieldValue(skateboardOptionsTransform, "Offroad Skateboard", MRLCore.Instance.config.Skateboards.Offroad_Skateboard_Price);
+            }
         }
 
         public GameObject DansHardwareTemplate;
