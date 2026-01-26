@@ -15,7 +15,7 @@ using Il2CppScheduleOne.Vehicles;
 using Il2CppScheduleOne.Tools;
 
 
-[assembly: MelonInfo(typeof(MoreRealisticLaundering.MRLCore), "MoreRealisticLaundering (Forked by HazDS)", "1.2.7", "KampfBallerina", null)]
+[assembly: MelonInfo(typeof(MoreRealisticLaundering.MRLCore), "MoreRealisticLaundering (Forked by HazDS)", "1.2.8", "KampfBallerina", null)]
 [assembly: MelonGame("TVGS", "Schedule I")]
 
 namespace MoreRealisticLaundering
